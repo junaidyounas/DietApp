@@ -1,50 +1,118 @@
-# Welcome to your Expo app 👋
+# DietApp - Calorie Tracking App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A cross-platform mobile app built with Expo for tracking diet and calories. The app is designed to be offline-first, using local storage for all data.
 
-## Get started
+## Features
 
-1. Install dependencies
+- User profile setup with personalized calorie goals
+- Daily calorie tracking with visual progress
+- Meal logging with macronutrient tracking
+- Offline meal suggestions based on dietary preferences
+- Local storage for all data
+- Dark mode support
+- Push notifications for reminders
+- Settings management
+- Weight tracking
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+- React Native with Expo
+- TypeScript
+- MMKV for local storage
+- Zustand for state management
+- Expo Router for navigation
+- Expo Notifications for reminders
 
-   ```bash
-   npx expo start
-   ```
+## Prerequisites
 
-In the output, you'll find options to open the app in a
+- Node.js (v14 or higher)
+- npm or yarn
+- Expo CLI
+- iOS Simulator (for Mac) or Android Emulator
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Installation
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+1. Clone the repository:
 ```bash
-npm run reset-project
+git clone https://github.com/yourusername/dietapp.git
+cd dietapp
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
 
-## Learn more
+3. Start the development server:
+```bash
+npm start
+# or
+yarn start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+4. Run on your preferred platform:
+- Press `i` for iOS simulator
+- Press `a` for Android emulator
+- Scan QR code with Expo Go app for physical device
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Project Structure
 
-## Join the community
+```
+dietapp/
+├── app/                    # Expo Router app directory
+│   ├── index.tsx          # Home screen
+│   ├── onboarding.tsx     # User onboarding
+│   ├── add-meal.tsx       # Add meal screen
+│   └── settings.tsx       # Settings screen
+├── components/            # Reusable components
+│   ├── CalorieProgressBar.tsx
+│   ├── MealCard.tsx
+│   └── SettingsToggle.tsx
+├── lib/                   # Core utilities
+│   └── storage.ts        # MMKV storage wrapper
+├── types/                # TypeScript types
+│   └── index.ts         # Type definitions
+├── utils/               # Helper functions
+│   └── healthCalculations.ts
+└── data/               # Static data
+    └── meals.ts       # Meal suggestions
+```
 
-Join our community of developers creating universal apps.
+## Usage
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. First Launch:
+   - Complete the onboarding process
+   - Enter your personal information
+   - Set your dietary goals and preferences
+
+2. Daily Usage:
+   - Track your meals using the home screen
+   - Add new meals with the + button
+   - View your daily progress
+   - Check your remaining calories
+
+3. Settings:
+   - Customize notifications
+   - Change theme preferences
+   - Manage your profile
+   - Reset data if needed
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Expo team for the amazing framework
+- React Native community for the ecosystem
+- All contributors who help improve the app

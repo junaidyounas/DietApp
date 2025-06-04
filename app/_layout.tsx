@@ -1,45 +1,78 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React from 'react';
 import { useColorScheme } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+
+const COLORS = {
+  primary: '#4CAF50',
+  secondary: '#2196F3',
+  accent: '#FF9800',
+  background: '#F5F5F5',
+  text: '#333333',
+  lightText: '#666666',
+  white: '#FFFFFF',
+  error: '#FF3B30',
+  success: '#34C759',
+};
 
 export default function AppLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const router = useRouter();
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarStyle: {
-          backgroundColor: isDark ? '#1a1a1a' : '#fff',
-          borderTopColor: isDark ? '#333' : '#e0e0e0',
-        },
-        tabBarActiveTintColor: '#4CAF50',
-        tabBarInactiveTintColor: isDark ? '#666' : '#999',
-        headerStyle: {
-          backgroundColor: isDark ? '#1a1a1a' : '#fff',
-        },
-        headerTintColor: isDark ? '#fff' : '#000',
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="progress"
-        options={{
-          title: 'Progress',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart-outline" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#1a1a1a' : COLORS.white }}>
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: isDark ? '#1a1a1a' : COLORS.white,
+            },
+            headerTintColor: isDark ? COLORS.white : COLORS.text,
+            headerShadowVisible: false,
+            contentStyle: {
+              backgroundColor: isDark ? '#1a1a1a' : COLORS.background,
+            },
+          }}
+        >
+          <Stack.Screen
+            name="index"
+            options={{
+              title: 'Home',
+              headerRight: () => (
+                <Ionicons
+                  name="settings-outline"
+                  size={24}
+                  color={isDark ? COLORS.white : COLORS.text}
+                  style={{ marginRight: 16 }}
+                  onPress={() => router.push('/settings')}
+                />
+              ),
+            }}
+          />
+          <Stack.Screen
+            name="onboarding"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings"
+            options={{
+              title: 'Settings',
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="add-meal"
+            options={{
+              title: 'Add Meal',
+              presentation: 'modal',
+            }}
+          />
+        </Stack>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }

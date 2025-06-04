@@ -22,6 +22,18 @@ const COLORS = {
   success: '#34C759',
 };
 
+const UNIT_CONVERSIONS = {
+  kgToLbs: (kg: number) => kg * 2.20462,
+  lbsToKg: (lbs: number) => lbs / 2.20462,
+  cmToFt: (cm: number) => {
+    const inches = cm / 2.54;
+    const feet = Math.floor(inches / 12);
+    const remainingInches = Math.round(inches % 12);
+    return { feet, inches: remainingInches };
+  },
+  ftToCm: (feet: number, inches: number) => (feet * 12 + inches) * 2.54,
+};
+
 export default function OnboardingScreen() {
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState<Partial<UserProfile>>({
@@ -30,6 +42,8 @@ export default function OnboardingScreen() {
     gender: 'male',
     height: 0,
     weight: 0,
+    heightUnit: 'cm',
+    weightUnit: 'kg',
     activityLevel: 'moderate',
     goal: 'maintain',
     dietaryPreferences: [],
@@ -49,19 +63,26 @@ export default function OnboardingScreen() {
   };
 
   const handleNext = async () => {
-    if (step < 7) {
+    if (step < 9) {
       setStep(step + 1);
     } else {
       try {
-        // Calculate health metrics
-        const metrics = calculateHealthMetrics(profile as UserProfile);
-
-        // Save profile and daily calories
-        const completeProfile: UserProfile = {
-          ...profile as UserProfile,
+        // Convert units to metric for calculations
+        const metricProfile = {
+          ...profile,
+          height: profile.heightUnit === 'ft' && profile.height !== undefined
+            ? UNIT_CONVERSIONS.ftToCm(Math.floor(profile.height), (profile.height % 1) * 12)
+            : profile.height || 0,
+          weight: profile.weightUnit === 'lbs' && profile.weight !== undefined
+            ? UNIT_CONVERSIONS.lbsToKg(profile.weight)
+            : profile.weight || 0,
         };
 
-        await Storage.setUserProfile(completeProfile);
+        // Calculate health metrics
+        const metrics = calculateHealthMetrics(metricProfile as UserProfile);
+
+        // Save profile and daily calories
+        await Storage.setUserProfile(profile as UserProfile);
         await Storage.setDailyCalories({
           date: new Date().toISOString().split('T')[0],
           goal: metrics.dailyCalories,
@@ -75,7 +96,6 @@ export default function OnboardingScreen() {
         router.replace('/');
       } catch (error) {
         console.error('Error saving profile:', error);
-        // Handle error appropriately
       }
     }
   };
@@ -89,7 +109,7 @@ export default function OnboardingScreen() {
   const renderProgressBar = () => {
     return (
       <View style={styles.progressContainer}>
-        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
           <View
             key={i}
             style={[
@@ -165,17 +185,30 @@ export default function OnboardingScreen() {
                 colors={[COLORS.accent, COLORS.primary]}
                 style={styles.iconContainer}
               >
-                <Ionicons name="body-outline" size={64} color={COLORS.white} />
+                <Ionicons name="scale-outline" size={64} color={COLORS.white} />
               </LinearGradient>
-              <Text style={styles.label}>What's your height?</Text>
-              <TextInput
-                style={styles.input}
-                value={profile.height?.toString()}
-                onChangeText={(text) => setProfile({ ...profile, height: Number(text) || 0 })}
-                placeholder="Height in centimeters"
-                keyboardType="numeric"
-                placeholderTextColor={COLORS.lightText}
-              />
+              <Text style={styles.label}>Choose your weight unit</Text>
+              <View style={styles.radioGroup}>
+                {(['kg', 'lbs'] as const).map((unit) => (
+                  <Pressable
+                    key={unit}
+                    style={[
+                      styles.radioButton,
+                      profile.weightUnit === unit && styles.radioButtonSelected,
+                    ]}
+                    onPress={() => setProfile({ ...profile, weightUnit: unit })}
+                  >
+                    <Text
+                      style={[
+                        styles.radioButtonText,
+                        profile.weightUnit === unit && styles.radioButtonTextSelected,
+                      ]}
+                    >
+                      {unit.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </Animated.View>
           );
         case 4:
@@ -196,7 +229,7 @@ export default function OnboardingScreen() {
                 style={styles.input}
                 value={profile.weight?.toString()}
                 onChangeText={(text) => setProfile({ ...profile, weight: Number(text) || 0 })}
-                placeholder="Weight in kilograms"
+                placeholder={`Weight in ${profile.weightUnit}`}
                 keyboardType="numeric"
                 placeholderTextColor={COLORS.lightText}
               />
@@ -211,6 +244,102 @@ export default function OnboardingScreen() {
             >
               <LinearGradient
                 colors={[COLORS.secondary, COLORS.accent]}
+                style={styles.iconContainer}
+              >
+                <Ionicons name="resize-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>Choose your height unit</Text>
+              <View style={styles.radioGroup}>
+                {(['cm', 'ft'] as const).map((unit) => (
+                  <Pressable
+                    key={unit}
+                    style={[
+                      styles.radioButton,
+                      profile.heightUnit === unit && styles.radioButtonSelected,
+                    ]}
+                    onPress={() => setProfile({ ...profile, heightUnit: unit })}
+                  >
+                    <Text
+                      style={[
+                        styles.radioButtonText,
+                        profile.heightUnit === unit && styles.radioButtonTextSelected,
+                      ]}
+                    >
+                      {unit.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+          );
+        case 6:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.accent, COLORS.primary]}
+                style={styles.iconContainer}
+              >
+                <Ionicons name="body-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>What's your height?</Text>
+              {profile.heightUnit === 'cm' ? (
+                <TextInput
+                  style={styles.input}
+                  value={profile.height?.toString()}
+                  onChangeText={(text) => setProfile({ ...profile, height: Number(text) || 0 })}
+                  placeholder="Height in centimeters"
+                  keyboardType="numeric"
+                  placeholderTextColor={COLORS.lightText}
+                />
+              ) : (
+                <View style={styles.heightInputContainer}>
+                  <View style={styles.heightInput}>
+                    <TextInput
+                      style={[styles.input, styles.heightInputField]}
+                      value={Math.floor(profile.height || 0).toString()}
+                      onChangeText={(text) => {
+                        const feet = Number(text) || 0;
+                        const inches = (profile.height || 0) % 1;
+                        setProfile({ ...profile, height: feet + inches });
+                      }}
+                      placeholder="Feet"
+                      keyboardType="numeric"
+                      placeholderTextColor={COLORS.lightText}
+                    />
+                    <Text style={styles.heightUnit}>ft</Text>
+                  </View>
+                  <View style={styles.heightInput}>
+                    <TextInput
+                      style={[styles.input, styles.heightInputField]}
+                      value={Math.round(((profile.height || 0) % 1) * 12).toString()}
+                      onChangeText={(text) => {
+                        const feet = Math.floor(profile.height || 0);
+                        const inches = Number(text) || 0;
+                        setProfile({ ...profile, height: feet + inches / 12 });
+                      }}
+                      placeholder="Inches"
+                      keyboardType="numeric"
+                      placeholderTextColor={COLORS.lightText}
+                    />
+                    <Text style={styles.heightUnit}>in</Text>
+                  </View>
+                </View>
+              )}
+            </Animated.View>
+          );
+        case 7:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
                 style={styles.iconContainer}
               >
                 <Ionicons name="male-female-outline" size={64} color={COLORS.white} />
@@ -239,7 +368,7 @@ export default function OnboardingScreen() {
               </View>
             </Animated.View>
           );
-        case 6:
+        case 8:
           return (
             <Animated.View
               entering={SlideInRight}
@@ -247,7 +376,7 @@ export default function OnboardingScreen() {
               style={styles.step}
             >
               <LinearGradient
-                colors={[COLORS.accent, COLORS.primary]}
+                colors={[COLORS.secondary, COLORS.accent]}
                 style={styles.iconContainer}
               >
                 <Ionicons name="fitness-outline" size={64} color={COLORS.white} />
@@ -276,7 +405,7 @@ export default function OnboardingScreen() {
               </View>
             </Animated.View>
           );
-        case 7:
+        case 9:
           return (
             <Animated.View
               entering={SlideInRight}
@@ -284,7 +413,7 @@ export default function OnboardingScreen() {
               style={styles.step}
             >
               <LinearGradient
-                colors={[COLORS.primary, COLORS.secondary]}
+                colors={[COLORS.accent, COLORS.primary]}
                 style={styles.iconContainer}
               >
                 <Ionicons name="flag-outline" size={64} color={COLORS.white} />
@@ -341,7 +470,7 @@ export default function OnboardingScreen() {
           disabled={step === 1 && !profile.name}
         >
           <Text style={[styles.buttonText, styles.buttonTextPrimary]}>
-            {step === 7 ? 'Finish' : 'Next'}
+            {step === 9 ? 'Finish' : 'Next'}
           </Text>
         </Pressable>
       </View>
@@ -465,5 +594,25 @@ const styles = StyleSheet.create({
   },
   buttonTextPrimary: {
     color: COLORS.white,
+  },
+  heightInputContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  heightInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  heightInputField: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  heightUnit: {
+    fontSize: 16,
+    color: COLORS.text,
+    marginLeft: 8,
   },
 }); 

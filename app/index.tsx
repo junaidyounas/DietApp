@@ -2,10 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CalorieProgressBar } from '../components/CalorieProgressBar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MealCard } from '../components/MealCard';
 import { Storage } from '../lib/storage';
 import { DailyCalories, Meal, UserProfile } from '../types';
+
+const COLORS = {
+  primary: '#4CAF50',
+  secondary: '#2196F3',
+  accent: '#FF9800',
+  background: '#F5F5F5',
+  text: '#333333',
+  lightText: '#666666',
+  white: '#FFFFFF',
+  error: '#FF3B30',
+  success: '#34C759',
+};
 
 export default function HomeScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -18,48 +30,17 @@ export default function HomeScreen() {
 
   const loadData = async () => {
     try {
-      const [userProfile, calories, userMeals] = await Promise.all([
-        Storage.getUserProfile(),
+      const [profileData, dailyCaloriesData, mealsData] = await Promise.all([
+        Storage.getProfile(),
         Storage.getDailyCalories(),
         Storage.getMeals(),
       ]);
 
-      if (!userProfile) {
-        router.replace('/onboarding');
-        return;
-      }
-
-      setProfile(userProfile);
-      setDailyCalories(calories);
-      setMeals(userMeals);
+      setProfile(profileData);
+      setDailyCalories(dailyCaloriesData);
+      setMeals(mealsData);
     } catch (error) {
       console.error('Error loading data:', error);
-    }
-  };
-
-  const handleAddMeal = () => {
-    router.push('/add-meal');
-  };
-
-  const handleDeleteMeal = async (mealId: string) => {
-    try {
-      const updatedMeals = meals.filter(meal => meal.id !== mealId);
-      await Storage.setMeals(updatedMeals);
-      setMeals(updatedMeals);
-
-      if (dailyCalories) {
-        const deletedMeal = meals.find(meal => meal.id === mealId);
-        if (deletedMeal) {
-          const updatedCalories = {
-            ...dailyCalories,
-            consumed: dailyCalories.consumed - deletedMeal.calories,
-          };
-          await Storage.setDailyCalories(updatedCalories);
-          setDailyCalories(updatedCalories);
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting meal:', error);
     }
   };
 
@@ -71,95 +52,191 @@ export default function HomeScreen() {
       await Storage.setMeals(updatedMeals);
       setMeals(updatedMeals);
     } catch (error) {
-      console.error('Error updating meal favorite status:', error);
+      console.error('Error updating favorite status:', error);
     }
   };
 
-  if (!profile || !dailyCalories) {
+  const formatNumber = (value: number) => {
+    return Math.round(value).toString();
+  };
+
+  if (!profile) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.message}>Please complete onboarding first</Text>
+          <Pressable
+            style={styles.button}
+            onPress={() => router.push('/onboarding')}
+          >
+            <Text style={styles.buttonText}>Start Onboarding</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, {profile.name}</Text>
-        <Pressable onPress={() => router.push('/settings')}>
-          <Ionicons name="settings-outline" size={24} color="#000" />
+        <Text style={styles.title}>Daily Summary</Text>
+        <Pressable
+          onPress={() => router.push('/settings')}
+          style={styles.settingsButton}
+        >
+          <Ionicons name="settings-outline" size={24} color={COLORS.text} />
         </Pressable>
       </View>
 
-      <View style={styles.calorieSection}>
-        <Text style={styles.sectionTitle}>Today's Calories</Text>
-        <CalorieProgressBar
-          consumed={dailyCalories.consumed}
-          goal={dailyCalories.goal}
-        />
-        <Text style={styles.calorieText}>
-          {dailyCalories.consumed} / {dailyCalories.goal} kcal
-        </Text>
-      </View>
-
-      <View style={styles.mealsSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today's Meals</Text>
-          <Pressable style={styles.addButton} onPress={handleAddMeal}>
-            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-            <Text style={styles.addButtonText}>Add Meal</Text>
-          </Pressable>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Calorie Summary</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Goal</Text>
+              <Text style={styles.summaryValue}>
+                {formatNumber(dailyCalories?.goal || 0)} cal
+              </Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Consumed</Text>
+              <Text style={styles.summaryValue}>
+                {formatNumber(dailyCalories?.consumed || 0)} cal
+              </Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Remaining</Text>
+              <Text style={[
+                styles.summaryValue,
+                { color: (dailyCalories?.remaining || 0) < 0 ? COLORS.error : COLORS.success }
+              ]}>
+                {formatNumber(dailyCalories?.remaining || 0)} cal
+              </Text>
+            </View>
+          </View>
         </View>
 
-        {meals.length === 0 ? (
-          <Text style={styles.emptyText}>No meals logged today</Text>
-        ) : (
-          meals.map(meal => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              onFavoritePress={() => handleFavoritePress(meal.id)}
-            />
-          ))
-        )}
-      </View>
-    </ScrollView>
+        <View style={styles.mealsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Today's Meals</Text>
+            <Pressable
+              style={styles.addButton}
+              onPress={() => router.push('/add-meal')}
+            >
+              <Ionicons name="add-circle" size={24} color={COLORS.primary} />
+            </Pressable>
+          </View>
+
+          {meals.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No meals added yet</Text>
+              <Pressable
+                style={styles.addMealButton}
+                onPress={() => router.push('/add-meal')}
+              >
+                <Text style={styles.addMealButtonText}>Add Your First Meal</Text>
+              </Pressable>
+            </View>
+          ) : (
+            meals.map(meal => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onFavoritePress={() => handleFavoritePress(meal.id)}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  message: {
+    fontSize: 18,
+    color: COLORS.text,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  greeting: {
+  title: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: COLORS.text,
   },
-  calorieSection: {
-    padding: 20,
-    backgroundColor: '#f8f8f8',
+  settingsButton: {
+    padding: 8,
   },
-  sectionTitle: {
+  scrollView: {
+    flex: 1,
+  },
+  summaryCard: {
+    backgroundColor: COLORS.white,
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  summaryTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+    color: COLORS.text,
+    marginBottom: 16,
   },
-  calorieText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: COLORS.lightText,
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   mealsSection: {
-    padding: 20,
+    padding: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -167,18 +244,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
   addButton: {
-    flexDirection: 'row',
+    padding: 8,
+  },
+  emptyState: {
     alignItems: 'center',
+    padding: 32,
   },
-  addButtonText: {
-    color: '#007AFF',
-    marginLeft: 4,
+  emptyStateText: {
     fontSize: 16,
+    color: COLORS.lightText,
+    marginBottom: 16,
   },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    marginTop: 20,
+  addMealButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  addMealButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

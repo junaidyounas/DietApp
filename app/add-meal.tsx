@@ -1,182 +1,182 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from 'react-native';
-import { getMealSuggestions } from '../data/meals';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Storage } from '../lib/storage';
 import { Meal } from '../types';
 
-const AddMealScreen = () => {
-  const [name, setName] = useState('');
-  const [calories, setCalories] = useState('');
-  const [protein, setProtein] = useState('');
-  const [carbs, setCarbs] = useState('');
-  const [fat, setFat] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
+const COLORS = {
+  primary: '#4CAF50',
+  secondary: '#2196F3',
+  accent: '#FF9800',
+  background: '#F5F5F5',
+  text: '#333333',
+  lightText: '#666666',
+  white: '#FFFFFF',
+  error: '#FF3B30',
+  success: '#34C759',
+};
 
-  const profile = Storage.getUserProfile();
-  const suggestions = profile
-    ? getMealSuggestions(profile.dietaryPreference)
-    : [];
+export default function AddMealScreen() {
+  const [meal, setMeal] = useState<Partial<Meal>>({
+    name: '',
+    calories: undefined,
+    protein: undefined,
+    carbs: undefined,
+    fat: undefined,
+    timestamp: new Date().toISOString(),
+    isFavorite: false,
+  });
 
-  const handleSubmit = () => {
-    if (!name || !calories) return;
+  const handleSave = async () => {
+    try {
+      if (!meal.name || meal.calories === undefined) {
+        Alert.alert('Error', 'Please fill in all required fields');
+        return;
+      }
 
-    const newMeal: Meal = {
-      id: Date.now().toString(),
-      name,
-      calories: parseInt(calories),
-      timestamp: new Date().toISOString(),
-      macros: protein || carbs || fat
-        ? {
-            protein: parseInt(protein) || 0,
-            carbs: parseInt(carbs) || 0,
-            fat: parseInt(fat) || 0,
-          }
-        : undefined,
-    };
+      const newMeal: Meal = {
+        id: Date.now().toString(),
+        name: meal.name,
+        calories: Math.round(meal.calories),
+        protein: Math.round(meal.protein || 0),
+        carbs: Math.round(meal.carbs || 0),
+        fat: Math.round(meal.fat || 0),
+        timestamp: meal.timestamp || new Date().toISOString(),
+        isFavorite: false,
+      };
 
-    const meals = Storage.getMeals();
-    meals.push(newMeal);
-    Storage.setMeals(meals);
+      // Get current meals
+      const currentMeals = await Storage.getMeals();
+      const updatedMeals = [...currentMeals, newMeal];
 
-    router.back();
+      // Save updated meals
+      await Storage.setMeals(updatedMeals);
+
+      // Update daily calories
+      const dailyCalories = await Storage.getDailyCalories();
+      if (dailyCalories) {
+        const updatedDailyCalories = {
+          ...dailyCalories,
+          consumed: dailyCalories.consumed + newMeal.calories,
+          meals: [...dailyCalories.meals, newMeal],
+        };
+        await Storage.setDailyCalories(updatedDailyCalories);
+      }
+
+      router.back();
+    } catch (error) {
+      console.error('Error saving meal:', error);
+      Alert.alert('Error', 'Failed to save meal. Please try again.');
+    }
   };
 
-  const handleSuggestionPress = (suggestion: typeof suggestions[0]) => {
-    setName(suggestion.name);
-    setCalories(suggestion.calories.toString());
-    setProtein(suggestion.macros.protein.toString());
-    setCarbs(suggestion.macros.carbs.toString());
-    setFat(suggestion.macros.fat.toString());
-    setShowSuggestions(false);
+  const formatNumber = (value: number | undefined) => {
+    if (value === undefined) return '';
+    return Math.round(value).toString();
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView style={styles.scrollView}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
         <View style={styles.header}>
-          <Pressable
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#666" />
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="close" size={24} color={COLORS.text} />
           </Pressable>
           <Text style={styles.title}>Add Meal</Text>
-          <View style={styles.placeholder} />
         </View>
 
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Meal Name</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter meal name"
-              onFocus={() => setShowSuggestions(true)}
-            />
-          </View>
-
-          {showSuggestions && suggestions.length > 0 && (
-            <View style={styles.suggestionsContainer}>
-              {suggestions.map(suggestion => (
-                <Pressable
-                  key={suggestion.id}
-                  style={styles.suggestionItem}
-                  onPress={() => handleSuggestionPress(suggestion)}
-                >
-                  <Text style={styles.suggestionName}>{suggestion.name}</Text>
-                  <Text style={styles.suggestionCalories}>
-                    {suggestion.calories} kcal
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Calories</Text>
-            <TextInput
-              style={styles.input}
-              value={calories}
-              onChangeText={setCalories}
-              placeholder="Enter calories"
-              keyboardType="numeric"
-            />
-          </View>
-
-          <Text style={styles.sectionTitle}>Macronutrients (Optional)</Text>
-
-          <View style={styles.macrosContainer}>
-            <View style={styles.macroInput}>
-              <Text style={styles.label}>Protein (g)</Text>
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Meal Name *</Text>
               <TextInput
                 style={styles.input}
-                value={protein}
-                onChangeText={setProtein}
-                placeholder="0"
-                keyboardType="numeric"
+                value={meal.name}
+                onChangeText={(text) => setMeal({ ...meal, name: text })}
+                placeholder="Enter meal name"
+                placeholderTextColor={COLORS.lightText}
               />
             </View>
 
-            <View style={styles.macroInput}>
-              <Text style={styles.label}>Carbs (g)</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Calories *</Text>
               <TextInput
                 style={styles.input}
-                value={carbs}
-                onChangeText={setCarbs}
-                placeholder="0"
+                value={formatNumber(meal.calories)}
+                onChangeText={(text) => setMeal({ ...meal, calories: Number(text) || undefined })}
+                placeholder="Enter calories"
                 keyboardType="numeric"
+                placeholderTextColor={COLORS.lightText}
               />
             </View>
 
-            <View style={styles.macroInput}>
-              <Text style={styles.label}>Fat (g)</Text>
-              <TextInput
-                style={styles.input}
-                value={fat}
-                onChangeText={setFat}
-                placeholder="0"
-                keyboardType="numeric"
-              />
+            <View style={styles.macrosContainer}>
+              <View style={styles.macroInput}>
+                <Text style={styles.label}>Protein (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formatNumber(meal.protein)}
+                  onChangeText={(text) => setMeal({ ...meal, protein: Number(text) || undefined })}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  placeholderTextColor={COLORS.lightText}
+                />
+              </View>
+
+              <View style={styles.macroInput}>
+                <Text style={styles.label}>Carbs (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formatNumber(meal.carbs)}
+                  onChangeText={(text) => setMeal({ ...meal, carbs: Number(text) || undefined })}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  placeholderTextColor={COLORS.lightText}
+                />
+              </View>
+
+              <View style={styles.macroInput}>
+                <Text style={styles.label}>Fat (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formatNumber(meal.fat)}
+                  onChangeText={(text) => setMeal({ ...meal, fat: Number(text) || undefined })}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  placeholderTextColor={COLORS.lightText}
+                />
+              </View>
             </View>
+
+            <Pressable 
+              style={[
+                styles.saveButton,
+                (!meal.name || meal.calories === undefined) && styles.saveButtonDisabled
+              ]} 
+              onPress={handleSave}
+              disabled={!meal.name || meal.calories === undefined}
+            >
+              <Text style={styles.saveButtonText}>Save Meal</Text>
+            </Pressable>
           </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <Pressable
-          style={[
-            styles.submitButton,
-            (!name || !calories) && styles.submitButtonDisabled,
-          ]}
-          onPress={handleSubmit}
-          disabled={!name || !calories}
-        >
-          <Text style={styles.submitButtonText}>Add Meal</Text>
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -184,89 +184,61 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#fff',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: COLORS.white,
   },
   backButton: {
-    padding: 8,
+    marginRight: 16,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  placeholder: {
-    width: 40,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
   form: {
-    padding: 16,
+    padding: 20,
   },
-  inputContainer: {
-    marginBottom: 16,
+  inputGroup: {
+    marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    fontWeight: '500',
+    color: COLORS.text,
     marginBottom: 8,
-    color: '#666',
   },
   input: {
-    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: COLORS.lightText,
     borderRadius: 8,
-    padding: 16,
+    padding: 12,
     fontSize: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 8,
-    marginBottom: 16,
+    color: COLORS.text,
+    backgroundColor: COLORS.white,
   },
   macrosContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    marginBottom: 20,
   },
   macroInput: {
     flex: 1,
+    marginHorizontal: 4,
   },
-  suggestionsContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 16,
-    maxHeight: 200,
-  },
-  suggestionItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  suggestionName: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  suggestionCalories: {
-    fontSize: 14,
-    color: '#666',
-  },
-  footer: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  submitButton: {
-    backgroundColor: '#4CAF50',
+  saveButton: {
+    backgroundColor: COLORS.primary,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
-  submitButtonDisabled: {
-    backgroundColor: '#ccc',
+  saveButtonDisabled: {
+    backgroundColor: COLORS.lightText,
+    opacity: 0.5,
   },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  saveButtonText: {
+    color: COLORS.white,
+    fontSize: 18,
     fontWeight: '600',
   },
 }); 

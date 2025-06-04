@@ -1,6 +1,8 @@
-export type Gender = 'male' | 'female' | 'other';
-
+export type Gender = 'male' | 'female';
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
 export type DietaryGoal = 'lose' | 'maintain' | 'gain';
+export type WeightUnit = 'kg' | 'lbs';
+export type HeightUnit = 'cm' | 'ft';
 
 export type DietaryPreference = 
   | 'none'
@@ -15,11 +17,13 @@ export type DietaryPreference =
 export interface UserProfile {
   name: string;
   age: number;
-  gender: 'male' | 'female';
+  gender: Gender;
   height: number;
   weight: number;
-  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-  goal: 'lose' | 'maintain' | 'gain';
+  heightUnit: HeightUnit;
+  weightUnit: WeightUnit;
+  activityLevel: ActivityLevel;
+  goal: DietaryGoal;
   dietaryPreferences: string[];
   measurements?: {
     chest: number;
@@ -34,13 +38,11 @@ export interface Meal {
   id: string;
   name: string;
   calories: number;
-  macros?: {
-    protein: number;
-    carbs: number;
-    fat: number;
-  };
+  protein: number;
+  carbs: number;
+  fat: number;
   timestamp: string;
-  isFavorite?: boolean;
+  isFavorite: boolean;
 }
 
 export interface WeightLog {
@@ -51,19 +53,18 @@ export interface WeightLog {
 }
 
 export interface Settings {
-  notifications: {
-    mealReminders: boolean;
-    waterReminders: boolean;
-    dailyCheckIn: boolean;
-  };
-  theme: 'light' | 'dark' | 'system';
+  weightUnit: WeightUnit;
+  heightUnit: HeightUnit;
+  darkMode: boolean;
+  notifications: boolean;
   waterGoal: number; // in ml
   mealReminderTimes: string[]; // HH:mm format
 }
 
 export interface DailyCalories {
   date: string;
-  consumed: number;
   goal: number;
+  consumed: number;
+  remaining: number;
   meals: Meal[];
 } 

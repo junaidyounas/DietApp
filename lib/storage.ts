@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MMKV } from 'react-native-mmkv';
+import { UserProfile } from '../types';
 
 // Storage keys
 export const STORAGE_KEYS = {
@@ -97,11 +98,14 @@ export const Storage = {
   },
   setDailyCalories: async (calories: any) => {
     try {
-      const caloriesString = JSON.stringify(calories);
+      const updatedCalories = {
+        ...calories,
+        remaining: calories.goal - calories.consumed,
+      };
       if (storage) {
-        storage.set(STORAGE_KEYS.DAILY_CALORIES, caloriesString);
+        storage.set(STORAGE_KEYS.DAILY_CALORIES, JSON.stringify(updatedCalories));
       } else {
-        await AsyncStorage.setItem(STORAGE_KEYS.DAILY_CALORIES, caloriesString);
+        await AsyncStorage.setItem(STORAGE_KEYS.DAILY_CALORIES, JSON.stringify(updatedCalories));
       }
     } catch (error) {
       console.error('Error setting daily calories:', error);
@@ -276,6 +280,16 @@ export const Storage = {
       }
     } catch (error) {
       console.error('Error clearing storage:', error);
+    }
+  },
+
+  getProfile: async (): Promise<UserProfile | null> => {
+    try {
+      const profile = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+      return profile ? JSON.parse(profile) : null;
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
     }
   },
 }; 

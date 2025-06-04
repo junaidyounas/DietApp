@@ -1,45 +1,58 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Storage } from '../lib/storage';
 import { UserProfile } from '../types';
 import { calculateHealthMetrics } from '../utils/healthCalculations';
 
-const OnboardingScreen = () => {
+export default function OnboardingScreen() {
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState<Partial<UserProfile>>({});
+  const [profile, setProfile] = useState<Partial<UserProfile>>({
+    name: '',
+    age: 0,
+    gender: 'male',
+    height: 0,
+    weight: 0,
+    activityLevel: 'moderate',
+    goal: 'maintain',
+    dietaryPreferences: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
 
-  const updateFormData = (key: keyof UserProfile, value: any) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < 4) {
-      setStep(prev => prev + 1);
+      setStep(step + 1);
     } else {
-      handleSubmit();
+      try {
+        // Calculate health metrics
+        const metrics = calculateHealthMetrics(profile as UserProfile);
+
+        // Save profile and daily calories
+        const completeProfile: UserProfile = {
+          ...profile as UserProfile,
+        };
+
+        await Storage.setUserProfile(completeProfile);
+        await Storage.setDailyCalories({
+          date: new Date().toISOString().split('T')[0],
+          goal: metrics.dailyCalories,
+          consumed: 0,
+          meals: [],
+        });
+
+        router.replace('/');
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        // Handle error appropriately
+      }
     }
   };
 
-  const handleSubmit = () => {
-    const profile: UserProfile = {
-      ...formData as UserProfile,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const metrics = calculateHealthMetrics(profile);
-    Storage.setUserProfile(profile);
-    router.replace('/');
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
   };
 
   const renderStep = () => {
@@ -47,338 +60,198 @@ const OnboardingScreen = () => {
       case 1:
         return (
           <View style={styles.step}>
-            <Text style={styles.title}>Basic Information</Text>
+            <Text style={styles.label}>What's your name?</Text>
             <TextInput
               style={styles.input}
-              placeholder="Name"
-              value={formData.name}
-              onChangeText={value => updateFormData('name', value)}
+              value={profile.name}
+              onChangeText={(text) => setProfile({ ...profile, name: text })}
+              placeholder="Enter your name"
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Age"
-              keyboardType="numeric"
-              value={formData.age?.toString()}
-              onChangeText={value => updateFormData('age', parseInt(value) || 0)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Weight (kg)"
-              keyboardType="numeric"
-              value={formData.weight?.toString()}
-              onChangeText={value => updateFormData('weight', parseFloat(value) || 0)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Height (cm)"
-              keyboardType="numeric"
-              value={formData.height?.toString()}
-              onChangeText={value => updateFormData('height', parseFloat(value) || 0)}
-            />
-            <View style={styles.genderContainer}>
-              {(['male', 'female'] as const).map(gender => (
-                <Pressable
-                  key={gender}
-                  style={[
-                    styles.genderButton,
-                    formData.gender === gender && styles.genderButtonActive,
-                  ]}
-                  onPress={() => updateFormData('gender', gender)}
-                >
-                  <Text
-                    style={[
-                      styles.genderButtonText,
-                      formData.gender === gender && styles.genderButtonTextActive,
-                    ]}
-                  >
-                    {gender.charAt(0).toUpperCase() + gender.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
           </View>
         );
-
       case 2:
         return (
           <View style={styles.step}>
-            <Text style={styles.title}>Activity Level</Text>
-            <View style={styles.goalContainer}>
-              {(['sedentary', 'light', 'moderate', 'active', 'very_active'] as const).map(level => (
-                <Pressable
-                  key={level}
-                  style={[
-                    styles.goalButton,
-                    formData.activityLevel === level && styles.goalButtonActive,
-                  ]}
-                  onPress={() => updateFormData('activityLevel', level)}
-                >
-                  <Text
-                    style={[
-                      styles.goalButtonText,
-                      formData.activityLevel === level && styles.goalButtonTextActive,
-                    ]}
-                  >
-                    {level.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                  </Text>
-                </Pressable>
-              ))}
+            <Text style={styles.label}>Basic Information</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.age?.toString()}
+              onChangeText={(text) => setProfile({ ...profile, age: Number(text) || 0 })}
+              placeholder="Age"
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.input}
+              value={profile.height?.toString()}
+              onChangeText={(text) => setProfile({ ...profile, height: Number(text) || 0 })}
+              placeholder="Height (cm)"
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.input}
+              value={profile.weight?.toString()}
+              onChangeText={(text) => setProfile({ ...profile, weight: Number(text) || 0 })}
+              placeholder="Weight (kg)"
+              keyboardType="numeric"
+            />
+            <View style={styles.radioGroup}>
+              <Text style={styles.radioLabel}>Gender:</Text>
+              <Pressable
+                style={[styles.radioButton, profile.gender === 'male' && styles.radioButtonSelected]}
+                onPress={() => setProfile({ ...profile, gender: 'male' })}
+              >
+                <Text>Male</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.radioButton, profile.gender === 'female' && styles.radioButtonSelected]}
+                onPress={() => setProfile({ ...profile, gender: 'female' })}
+              >
+                <Text>Female</Text>
+              </Pressable>
             </View>
           </View>
         );
-
       case 3:
         return (
           <View style={styles.step}>
-            <Text style={styles.title}>Dietary Preferences</Text>
-            <ScrollView style={styles.preferenceContainer}>
-              {([
-                'none',
-                'vegetarian',
-                'vegan',
-                'keto',
-                'paleo',
-                'mediterranean',
-                'gluten-free',
-                'dairy-free',
-              ] as const).map(preference => (
+            <Text style={styles.label}>Activity Level</Text>
+            <View style={styles.radioGroup}>
+              {(['sedentary', 'light', 'moderate', 'active', 'very_active'] as const).map((level) => (
                 <Pressable
-                  key={preference}
-                  style={[
-                    styles.preferenceButton,
-                    formData.dietaryPreferences?.includes(preference) &&
-                      styles.preferenceButtonActive,
-                  ]}
-                  onPress={() => {
-                    const currentPreferences = formData.dietaryPreferences || [];
-                    const newPreferences = currentPreferences.includes(preference)
-                      ? currentPreferences.filter(p => p !== preference)
-                      : [...currentPreferences, preference];
-                    updateFormData('dietaryPreferences', newPreferences);
-                  }}
+                  key={level}
+                  style={[styles.radioButton, profile.activityLevel === level && styles.radioButtonSelected]}
+                  onPress={() => setProfile({ ...profile, activityLevel: level })}
                 >
-                  <Text
-                    style={[
-                      styles.preferenceButtonText,
-                      formData.dietaryPreferences?.includes(preference) &&
-                        styles.preferenceButtonTextActive,
-                    ]}
-                  >
-                    {preference
-                      .split('-')
-                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                      .join(' ')}
+                  <Text style={styles.radioButtonText}>
+                    {level.charAt(0).toUpperCase() + level.slice(1).replace('_', ' ')}
                   </Text>
                 </Pressable>
               ))}
-            </ScrollView>
-          </View>
-        );
-
-      case 4:
-        return (
-          <View style={styles.step}>
-            <Text style={styles.title}>Review Your Information</Text>
-            <View style={styles.reviewContainer}>
-              <Text style={styles.reviewText}>Name: {formData.name}</Text>
-              <Text style={styles.reviewText}>Age: {formData.age} years</Text>
-              <Text style={styles.reviewText}>Weight: {formData.weight} kg</Text>
-              <Text style={styles.reviewText}>Height: {formData.height} cm</Text>
-              <Text style={styles.reviewText}>
-                Gender: {formData.gender?.charAt(0).toUpperCase()}
-                {formData.gender?.slice(1)}
-              </Text>
-              <Text style={styles.reviewText}>
-                Activity Level: {formData.activityLevel?.split('_').map(word => 
-                  word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ')}
-              </Text>
-              <Text style={styles.reviewText}>
-                Dietary Preferences:{' '}
-                {formData.dietaryPreferences?.map(pref =>
-                  pref.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
-                ).join(', ')}
-              </Text>
             </View>
           </View>
         );
-
+      case 4:
+        return (
+          <View style={styles.step}>
+            <Text style={styles.label}>Your Goal</Text>
+            <View style={styles.radioGroup}>
+              {(['lose', 'maintain', 'gain'] as const).map((goal) => (
+                <Pressable
+                  key={goal}
+                  style={[styles.radioButton, profile.goal === goal && styles.radioButtonSelected]}
+                  onPress={() => setProfile({ ...profile, goal })}
+                >
+                  <Text style={styles.radioButtonText}>
+                    {goal.charAt(0).toUpperCase() + goal.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        );
       default:
         return null;
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {renderStep()}
-        <View style={styles.navigation}>
-          {step > 1 && (
-            <Pressable
-              style={styles.backButton}
-              onPress={() => setStep(prev => prev - 1)}
-            >
-              <Text style={styles.backButtonText}>Back</Text>
-            </Pressable>
-          )}
-          <Pressable
-            style={[
-              styles.nextButton,
-              (!formData.age ||
-                !formData.weight ||
-                !formData.height ||
-                !formData.gender ||
-                !formData.activityLevel ||
-                !formData.dietaryPreferences) &&
-                styles.nextButtonDisabled,
-            ]}
-            onPress={handleNext}
-            disabled={
-              !formData.age ||
-              !formData.weight ||
-              !formData.height ||
-              !formData.gender ||
-              !formData.activityLevel ||
-              !formData.dietaryPreferences
-            }
-          >
-            <Text style={styles.nextButtonText}>
-              {step === 4 ? 'Complete' : 'Next'}
-            </Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Welcome to DietApp</Text>
+        <Text style={styles.subtitle}>Let's set up your profile</Text>
+      </View>
+      {renderStep()}
+      <View style={styles.navigation}>
+        {step > 1 && (
+          <Pressable style={styles.button} onPress={handleBack}>
+            <Text style={styles.buttonText}>Back</Text>
           </Pressable>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        )}
+        <Pressable style={[styles.button, styles.buttonPrimary]} onPress={handleNext}>
+          <Text style={[styles.buttonText, styles.buttonTextPrimary]}>
+            {step === 4 ? 'Finish' : 'Next'}
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 16,
-  },
-  step: {
-    flex: 1,
+  header: {
+    padding: 20,
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 24,
-    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+  step: {
+    padding: 20,
+  },
+  label: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
   },
   input: {
-    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 8,
-    padding: 16,
+    padding: 12,
     marginBottom: 16,
     fontSize: 16,
   },
-  genderContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  radioGroup: {
     marginBottom: 16,
   },
-  genderButton: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  genderButtonActive: {
-    backgroundColor: '#4CAF50',
-  },
-  genderButtonText: {
+  radioLabel: {
     fontSize: 16,
-    color: '#666',
+    marginBottom: 8,
   },
-  genderButtonTextActive: {
-    color: '#fff',
-  },
-  goalContainer: {
-    gap: 16,
-  },
-  goalButton: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  goalButtonActive: {
-    backgroundColor: '#4CAF50',
-  },
-  goalButtonText: {
-    fontSize: 18,
-    color: '#666',
-  },
-  goalButtonTextActive: {
-    color: '#fff',
-  },
-  preferenceContainer: {
-    maxHeight: 400,
-  },
-  preferenceButton: {
-    backgroundColor: '#fff',
-    padding: 16,
+  radioButton: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 8,
     marginBottom: 8,
   },
-  preferenceButtonActive: {
-    backgroundColor: '#4CAF50',
+  radioButtonSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
   },
-  preferenceButtonText: {
+  radioButtonText: {
     fontSize: 16,
-    color: '#666',
-  },
-  preferenceButtonTextActive: {
-    color: '#fff',
-  },
-  reviewContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-  },
-  reviewText: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#666',
+    color: '#000',
   },
   navigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 24,
+    padding: 20,
   },
-  backButton: {
-    padding: 16,
+  button: {
+    padding: 12,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  nextButton: {
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#4CAF50',
-    flex: 1,
-    marginLeft: 16,
+    minWidth: 100,
     alignItems: 'center',
   },
-  nextButtonDisabled: {
-    backgroundColor: '#ccc',
+  buttonPrimary: {
+    backgroundColor: '#007AFF',
   },
-  nextButtonText: {
+  buttonText: {
     fontSize: 16,
+    color: '#007AFF',
+  },
+  buttonTextPrimary: {
     color: '#fff',
-    fontWeight: '600',
   },
 }); 

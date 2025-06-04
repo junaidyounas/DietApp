@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.johnsriders.DietApp"
+      "bundleIdentifier": "com.johnsriders.DietApp",
+      "appleTeamId": "4888URA2FV"
     },
     "android": {
       "adaptiveIcon": {

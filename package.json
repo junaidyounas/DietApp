@@ -5,14 +5,19 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios --device",
     "web": "expo start --web",
     "lint": "expo lint",
+    "buildandroidx": "cd android && ./gradlew :app:assembleRelease",
+    "submitios": "eas submit --platform ios",
+    "buildios": "eas build --platform ios --profile production",
+    "buildandroid": "eas build --platform android --profile production",
     "prebuild": "npx expo prebuild"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
+    "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",

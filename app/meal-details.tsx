@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NotificationManager } from '../lib/notifications';
 import { Storage } from '../lib/storage';
 import { Meal } from '../types';
 
@@ -21,6 +22,8 @@ const COLORS = {
 export default function MealDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [meal, setMeal] = useState<Meal | null>(null);
+  const [isEditingReminder, setIsEditingReminder] = useState(false);
+  const [tempReminderTime, setTempReminderTime] = useState('');
 
   useEffect(() => {
     loadMeal();
@@ -53,6 +56,68 @@ export default function MealDetailsScreen() {
       }
     } catch (error) {
       console.error('Error updating favorite status:', error);
+    }
+  };
+
+  const handleReminderToggle = async (enabled: boolean) => {
+    if (!meal) return;
+
+    try {
+      const updatedMeal = {
+        ...meal,
+        reminderEnabled: enabled,
+        reminderTime: enabled ? meal.reminderTime || '12:00' : undefined,
+      };
+      setMeal(updatedMeal);
+
+      const meals = await Storage.getMeals();
+      const updatedMeals = meals.map((m: Meal) =>
+        m.id === meal.id ? updatedMeal : m
+      );
+      await Storage.setMeals(updatedMeals);
+
+      if (enabled) {
+        await NotificationManager.scheduleMealReminder(updatedMeal, updatedMeal.reminderTime || '12:00');
+      } else {
+        await NotificationManager.cancelMealReminder(meal.id);
+      }
+    } catch (error) {
+      console.error('Error updating reminder:', error);
+      Alert.alert('Error', 'Failed to update reminder settings');
+    }
+  };
+
+  const handleReminderTimeChange = async () => {
+    if (!meal || !tempReminderTime) return;
+
+    // Validate time format (HH:mm)
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(tempReminderTime)) {
+      Alert.alert('Invalid Time', 'Please enter time in HH:mm format (e.g., 08:00)');
+      return;
+    }
+
+    try {
+      const updatedMeal = {
+        ...meal,
+        reminderTime: tempReminderTime,
+      };
+      setMeal(updatedMeal);
+      setIsEditingReminder(false);
+
+      const meals = await Storage.getMeals();
+      const updatedMeals = meals.map((m: Meal) =>
+        m.id === meal.id ? updatedMeal : m
+      );
+      await Storage.setMeals(updatedMeals);
+
+      if (updatedMeal.reminderEnabled) {
+        await NotificationManager.cancelMealReminder(meal.id);
+        await NotificationManager.scheduleMealReminder(updatedMeal, tempReminderTime);
+      }
+    } catch (error) {
+      console.error('Error updating reminder time:', error);
+      Alert.alert('Error', 'Failed to update reminder time');
     }
   };
 
@@ -131,6 +196,56 @@ export default function MealDetailsScreen() {
             <Text style={styles.date}>
               {new Date(meal.timestamp).toLocaleDateString()}
             </Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Reminder Settings</Text>
+            <View style={styles.reminderContainer}>
+              <View style={styles.reminderToggle}>
+                <Text style={styles.reminderLabel}>Enable Reminder</Text>
+                <Switch
+                  value={meal.reminderEnabled}
+                  onValueChange={handleReminderToggle}
+                  trackColor={{ false: '#767577', true: COLORS.primary }}
+                  thumbColor={meal.reminderEnabled ? COLORS.white : '#f4f3f4'}
+                />
+              </View>
+              {meal.reminderEnabled && (
+                <View style={styles.reminderTimeContainer}>
+                  {isEditingReminder ? (
+                    <View style={styles.reminderTimeEdit}>
+                      <TextInput
+                        style={styles.reminderTimeInput}
+                        value={tempReminderTime}
+                        onChangeText={setTempReminderTime}
+                        placeholder="HH:mm"
+                        placeholderTextColor={COLORS.lightText}
+                        keyboardType="numeric"
+                      />
+                      <Pressable
+                        style={styles.reminderTimeSave}
+                        onPress={handleReminderTimeChange}
+                      >
+                        <Text style={styles.reminderTimeSaveText}>Save</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={styles.reminderTimeDisplay}
+                      onPress={() => {
+                        setTempReminderTime(meal.reminderTime || '12:00');
+                        setIsEditingReminder(true);
+                      }}
+                    >
+                      <Text style={styles.reminderTimeText}>
+                        Reminder Time: {meal.reminderTime}
+                      </Text>
+                      <Ionicons name="pencil" size={16} color={COLORS.lightText} />
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -227,5 +342,60 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     textAlign: 'center',
     marginTop: 20,
+  },
+  reminderContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+  },
+  reminderToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reminderLabel: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  reminderTimeContainer: {
+    marginTop: 8,
+  },
+  reminderTimeDisplay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+  },
+  reminderTimeText: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  reminderTimeEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reminderTimeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.lightText,
+    borderRadius: 8,
+    padding: 12,
+    marginRight: 8,
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  reminderTimeSave: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  reminderTimeSaveText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

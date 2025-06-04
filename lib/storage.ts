@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MMKV } from 'react-native-mmkv';
-import { UserProfile } from '../types';
+import { Settings, UserProfile } from '../types';
 
 // Storage keys
 export const STORAGE_KEYS = {
@@ -206,21 +206,42 @@ export const Storage = {
   },
 
   // Settings
-  getSettings: async () => {
+  getSettings: async (): Promise<Settings> => {
     try {
       if (storage) {
         const settings = storage.getString(STORAGE_KEYS.SETTINGS);
-        return settings ? JSON.parse(settings) : {};
+        return settings ? JSON.parse(settings) : {
+          weightUnit: 'kg',
+          heightUnit: 'cm',
+          darkMode: false,
+          notifications: false,
+          waterGoal: 2000,
+          mealReminderTimes: [],
+        };
       } else {
         const settings = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
-        return settings ? JSON.parse(settings) : {};
+        return settings ? JSON.parse(settings) : {
+          weightUnit: 'kg',
+          heightUnit: 'cm',
+          darkMode: false,
+          notifications: false,
+          waterGoal: 2000,
+          mealReminderTimes: [],
+        };
       }
     } catch (error) {
       console.error('Error getting settings:', error);
-      return {};
+      return {
+        weightUnit: 'kg',
+        heightUnit: 'cm',
+        darkMode: false,
+        notifications: false,
+        waterGoal: 2000,
+        mealReminderTimes: [],
+      };
     }
   },
-  setSettings: async (settings: any) => {
+  setSettings: async (settings: Settings) => {
     try {
       const settingsString = JSON.stringify(settings);
       if (storage) {

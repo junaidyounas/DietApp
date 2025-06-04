@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Meal } from '../types';
 
 interface MealCardProps {
   meal: Meal;
   onPress?: () => void;
   onFavoritePress?: () => void;
+  onReminderToggle?: (enabled: boolean) => void;
   showMacros?: boolean;
 }
 
@@ -14,6 +15,7 @@ export const MealCard: React.FC<MealCardProps> = ({
   meal,
   onPress,
   onFavoritePress,
+  onReminderToggle,
   showMacros = true,
 }) => {
   return (
@@ -27,19 +29,29 @@ export const MealCard: React.FC<MealCardProps> = ({
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.name}>{meal.name}</Text>
-          <Pressable
-            onPress={onFavoritePress}
-            style={({ pressed }) => [
-              styles.favoriteButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name={meal.isFavorite ? 'heart' : 'heart-outline'}
-              size={24}
-              color={meal.isFavorite ? '#FF4B4B' : '#666'}
-            />
-          </Pressable>
+          <View style={styles.actions}>
+            {onReminderToggle && (
+              <Switch
+                value={meal.reminderEnabled}
+                onValueChange={onReminderToggle}
+                trackColor={{ false: '#767577', true: '#4CAF50' }}
+                thumbColor={meal.reminderEnabled ? '#fff' : '#f4f3f4'}
+              />
+            )}
+            <Pressable
+              onPress={onFavoritePress}
+              style={({ pressed }) => [
+                styles.favoriteButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name={meal.isFavorite ? 'heart' : 'heart-outline'}
+                size={24}
+                color={meal.isFavorite ? '#FF4B4B' : '#666'}
+              />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.details}>
@@ -63,12 +75,19 @@ export const MealCard: React.FC<MealCardProps> = ({
           )}
         </View>
 
-        <Text style={styles.timestamp}>
-          {new Date(meal.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </Text>
+        <View style={styles.footer}>
+          <Text style={styles.timestamp}>
+            {new Date(meal.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+          {meal.reminderEnabled && meal.reminderTime && (
+            <Text style={styles.reminderTime}>
+              Reminder: {meal.reminderTime}
+            </Text>
+          )}
+        </View>
       </View>
     </Pressable>
   );
@@ -108,8 +127,13 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   favoriteButton: {
     padding: 4,
+    marginLeft: 8,
   },
   details: {
     marginBottom: 8,
@@ -137,9 +161,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   timestamp: {
     fontSize: 12,
     color: '#999',
-    textAlign: 'right',
+  },
+  reminderTime: {
+    fontSize: 12,
+    color: '#4CAF50',
   },
 }); 

@@ -44,10 +44,17 @@ export interface Meal {
   protein: number;
   carbs: number;
   fat: number;
+  macros?: {
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
   timestamp: string;
   isFavorite: boolean;
   category: MealCategory;
   customCategoryName?: string;
+  reminderEnabled?: boolean;
+  reminderTime?: string;
 }
 
 export interface WeightLog {

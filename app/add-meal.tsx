@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Storage } from '../lib/storage';
 import { Meal, MealCategory } from '../types';
@@ -31,6 +31,8 @@ export default function AddMealScreen() {
     timestamp: new Date().toISOString(),
     isFavorite: false,
     category: 'breakfast',
+    reminderEnabled: false,
+    reminderTime: '12:00',
   });
   const [showCustomCategory, setShowCustomCategory] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -241,13 +243,41 @@ export default function AddMealScreen() {
               </View>
             </View>
 
-            <Pressable 
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Reminder Settings</Text>
+              <View style={styles.reminderContainer}>
+                <View style={styles.reminderToggle}>
+                  <Text style={styles.reminderLabel}>Enable Reminder</Text>
+                  <Switch
+                    value={meal.reminderEnabled}
+                    onValueChange={(value) => setMeal({ ...meal, reminderEnabled: value })}
+                    trackColor={{ false: '#767577', true: COLORS.primary }}
+                    thumbColor={meal.reminderEnabled ? COLORS.white : '#f4f3f4'}
+                  />
+                </View>
+                {meal.reminderEnabled && (
+                  <View style={styles.timeInput}>
+                    <Text style={styles.timeLabel}>Reminder Time</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={meal.reminderTime}
+                      onChangeText={(text) => setMeal({ ...meal, reminderTime: text })}
+                      placeholder="HH:mm"
+                      placeholderTextColor={COLORS.lightText}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <Pressable
               style={[
                 styles.saveButton,
-                (!meal.name || meal.calories === undefined || (meal.category === 'custom' && !customCategoryName)) && styles.saveButtonDisabled
-              ]} 
+                (!meal.name || meal.calories === undefined) && styles.saveButtonDisabled,
+              ]}
               onPress={handleSave}
-              disabled={!meal.name || meal.calories === undefined || (meal.category === 'custom' && !customCategoryName)}
+              disabled={!meal.name || meal.calories === undefined}
             >
               <Text style={styles.saveButtonText}>Save Meal</Text>
             </Pressable>
@@ -357,5 +387,29 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 18,
     fontWeight: '600',
+  },
+  reminderContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 8,
+  },
+  reminderToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reminderLabel: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  timeInput: {
+    marginTop: 8,
+  },
+  timeLabel: {
+    fontSize: 14,
+    color: COLORS.lightText,
+    marginBottom: 8,
   },
 }); 

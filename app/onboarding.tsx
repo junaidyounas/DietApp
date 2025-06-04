@@ -1,9 +1,26 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { Storage } from '../lib/storage';
 import { UserProfile } from '../types';
 import { calculateHealthMetrics } from '../utils/healthCalculations';
+
+const { width } = Dimensions.get('window');
+
+const COLORS = {
+  primary: '#4CAF50',
+  secondary: '#2196F3',
+  accent: '#FF9800',
+  background: '#F5F5F5',
+  text: '#333333',
+  lightText: '#666666',
+  white: '#FFFFFF',
+  error: '#FF3B30',
+  success: '#34C759',
+};
 
 export default function OnboardingScreen() {
   const [step, setStep] = useState(1);
@@ -20,8 +37,19 @@ export default function OnboardingScreen() {
     updatedAt: new Date().toISOString(),
   });
 
+  useEffect(() => {
+    checkOnboardingStatus();
+  }, []);
+
+  const checkOnboardingStatus = async () => {
+    const isComplete = await Storage.isOnboardingComplete();
+    if (isComplete) {
+      router.replace('/');
+    }
+  };
+
   const handleNext = async () => {
-    if (step < 4) {
+    if (step < 7) {
       setStep(step + 1);
     } else {
       try {
@@ -41,6 +69,9 @@ export default function OnboardingScreen() {
           meals: [],
         });
 
+        // Mark onboarding as complete
+        await Storage.setOnboardingComplete(true);
+
         router.replace('/');
       } catch (error) {
         console.error('Error saving profile:', error);
@@ -55,103 +86,239 @@ export default function OnboardingScreen() {
     }
   };
 
+  const renderProgressBar = () => {
+    return (
+      <View style={styles.progressContainer}>
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <View
+            key={i}
+            style={[
+              styles.progressDot,
+              i === step && styles.progressDotActive,
+              i < step && styles.progressDotCompleted,
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
+
   const renderStep = () => {
-    switch (step) {
-      case 1:
-        return (
-          <View style={styles.step}>
-            <Text style={styles.label}>What's your name?</Text>
-            <TextInput
-              style={styles.input}
-              value={profile.name}
-              onChangeText={(text) => setProfile({ ...profile, name: text })}
-              placeholder="Enter your name"
-            />
-          </View>
-        );
-      case 2:
-        return (
-          <View style={styles.step}>
-            <Text style={styles.label}>Basic Information</Text>
-            <TextInput
-              style={styles.input}
-              value={profile.age?.toString()}
-              onChangeText={(text) => setProfile({ ...profile, age: Number(text) || 0 })}
-              placeholder="Age"
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.input}
-              value={profile.height?.toString()}
-              onChangeText={(text) => setProfile({ ...profile, height: Number(text) || 0 })}
-              placeholder="Height (cm)"
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.input}
-              value={profile.weight?.toString()}
-              onChangeText={(text) => setProfile({ ...profile, weight: Number(text) || 0 })}
-              placeholder="Weight (kg)"
-              keyboardType="numeric"
-            />
-            <View style={styles.radioGroup}>
-              <Text style={styles.radioLabel}>Gender:</Text>
-              <Pressable
-                style={[styles.radioButton, profile.gender === 'male' && styles.radioButtonSelected]}
-                onPress={() => setProfile({ ...profile, gender: 'male' })}
+    const stepContent = (() => {
+      switch (step) {
+        case 1:
+          return (
+            <Animated.View
+              entering={FadeIn}
+              exiting={FadeOut}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                style={styles.iconContainer}
               >
-                <Text>Male</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.radioButton, profile.gender === 'female' && styles.radioButtonSelected]}
-                onPress={() => setProfile({ ...profile, gender: 'female' })}
+                <Ionicons name="person-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>What's your name?</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.name}
+                onChangeText={(text) => setProfile({ ...profile, name: text })}
+                placeholder="Enter your name"
+                autoFocus
+                placeholderTextColor={COLORS.lightText}
+              />
+            </Animated.View>
+          );
+        case 2:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.secondary, COLORS.accent]}
+                style={styles.iconContainer}
               >
-                <Text>Female</Text>
-              </Pressable>
-            </View>
-          </View>
-        );
-      case 3:
-        return (
-          <View style={styles.step}>
-            <Text style={styles.label}>Activity Level</Text>
-            <View style={styles.radioGroup}>
-              {(['sedentary', 'light', 'moderate', 'active', 'very_active'] as const).map((level) => (
-                <Pressable
-                  key={level}
-                  style={[styles.radioButton, profile.activityLevel === level && styles.radioButtonSelected]}
-                  onPress={() => setProfile({ ...profile, activityLevel: level })}
-                >
-                  <Text style={styles.radioButtonText}>
-                    {level.charAt(0).toUpperCase() + level.slice(1).replace('_', ' ')}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        );
-      case 4:
-        return (
-          <View style={styles.step}>
-            <Text style={styles.label}>Your Goal</Text>
-            <View style={styles.radioGroup}>
-              {(['lose', 'maintain', 'gain'] as const).map((goal) => (
-                <Pressable
-                  key={goal}
-                  style={[styles.radioButton, profile.goal === goal && styles.radioButtonSelected]}
-                  onPress={() => setProfile({ ...profile, goal })}
-                >
-                  <Text style={styles.radioButtonText}>
-                    {goal.charAt(0).toUpperCase() + goal.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        );
-      default:
-        return null;
-    }
+                <Ionicons name="calendar-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>How old are you?</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.age?.toString()}
+                onChangeText={(text) => setProfile({ ...profile, age: Number(text) || 0 })}
+                placeholder="Enter your age"
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.lightText}
+              />
+            </Animated.View>
+          );
+        case 3:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.accent, COLORS.primary]}
+                style={styles.iconContainer}
+              >
+                <Ionicons name="body-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>What's your height?</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.height?.toString()}
+                onChangeText={(text) => setProfile({ ...profile, height: Number(text) || 0 })}
+                placeholder="Height in centimeters"
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.lightText}
+              />
+            </Animated.View>
+          );
+        case 4:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                style={styles.iconContainer}
+              >
+                <Ionicons name="scale-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>What's your weight?</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.weight?.toString()}
+                onChangeText={(text) => setProfile({ ...profile, weight: Number(text) || 0 })}
+                placeholder="Weight in kilograms"
+                keyboardType="numeric"
+                placeholderTextColor={COLORS.lightText}
+              />
+            </Animated.View>
+          );
+        case 5:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.secondary, COLORS.accent]}
+                style={styles.iconContainer}
+              >
+                <Ionicons name="male-female-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>What's your gender?</Text>
+              <View style={styles.radioGroup}>
+                {(['male', 'female'] as const).map((gender) => (
+                  <Pressable
+                    key={gender}
+                    style={[
+                      styles.radioButton,
+                      profile.gender === gender && styles.radioButtonSelected,
+                    ]}
+                    onPress={() => setProfile({ ...profile, gender })}
+                  >
+                    <Text
+                      style={[
+                        styles.radioButtonText,
+                        profile.gender === gender && styles.radioButtonTextSelected,
+                      ]}
+                    >
+                      {gender.charAt(0).toUpperCase() + gender.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+          );
+        case 6:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.accent, COLORS.primary]}
+                style={styles.iconContainer}
+              >
+                <Ionicons name="fitness-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>What's your activity level?</Text>
+              <View style={styles.radioGroup}>
+                {(['sedentary', 'light', 'moderate', 'active', 'very_active'] as const).map((level) => (
+                  <Pressable
+                    key={level}
+                    style={[
+                      styles.radioButton,
+                      profile.activityLevel === level && styles.radioButtonSelected,
+                    ]}
+                    onPress={() => setProfile({ ...profile, activityLevel: level })}
+                  >
+                    <Text
+                      style={[
+                        styles.radioButtonText,
+                        profile.activityLevel === level && styles.radioButtonTextSelected,
+                      ]}
+                    >
+                      {level.charAt(0).toUpperCase() + level.slice(1).replace('_', ' ')}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+          );
+        case 7:
+          return (
+            <Animated.View
+              entering={SlideInRight}
+              exiting={SlideOutLeft}
+              style={styles.step}
+            >
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                style={styles.iconContainer}
+              >
+                <Ionicons name="flag-outline" size={64} color={COLORS.white} />
+              </LinearGradient>
+              <Text style={styles.label}>What's your goal?</Text>
+              <View style={styles.radioGroup}>
+                {(['lose', 'maintain', 'gain'] as const).map((goal) => (
+                  <Pressable
+                    key={goal}
+                    style={[
+                      styles.radioButton,
+                      profile.goal === goal && styles.radioButtonSelected,
+                    ]}
+                    onPress={() => setProfile({ ...profile, goal })}
+                  >
+                    <Text
+                      style={[
+                        styles.radioButtonText,
+                        profile.goal === goal && styles.radioButtonTextSelected,
+                      ]}
+                    >
+                      {goal.charAt(0).toUpperCase() + goal.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+          );
+        default:
+          return null;
+      }
+    })();
+
+    return stepContent;
   };
 
   return (
@@ -160,6 +327,7 @@ export default function OnboardingScreen() {
         <Text style={styles.title}>Welcome to DietApp</Text>
         <Text style={styles.subtitle}>Let's set up your profile</Text>
       </View>
+      {renderProgressBar()}
       {renderStep()}
       <View style={styles.navigation}>
         {step > 1 && (
@@ -167,9 +335,13 @@ export default function OnboardingScreen() {
             <Text style={styles.buttonText}>Back</Text>
           </Pressable>
         )}
-        <Pressable style={[styles.button, styles.buttonPrimary]} onPress={handleNext}>
+        <Pressable
+          style={[styles.button, styles.buttonPrimary]}
+          onPress={handleNext}
+          disabled={step === 1 && !profile.name}
+        >
           <Text style={[styles.buttonText, styles.buttonTextPrimary]}>
-            {step === 4 ? 'Finish' : 'Next'}
+            {step === 7 ? 'Finish' : 'Next'}
           </Text>
         </Pressable>
       </View>
@@ -180,58 +352,94 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   header: {
     padding: 20,
     alignItems: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: COLORS.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.lightText,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  progressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.lightText,
+    marginHorizontal: 5,
+  },
+  progressDotActive: {
+    backgroundColor: COLORS.primary,
+    transform: [{ scale: 1.2 }],
+  },
+  progressDotCompleted: {
+    backgroundColor: COLORS.primary,
   },
   step: {
     padding: 20,
+    minHeight: width * 0.8,
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   label: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '600',
-    marginBottom: 16,
+    color: COLORS.text,
+    marginBottom: 24,
+    textAlign: 'center',
   },
   input: {
+    width: '100%',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
+    borderColor: COLORS.lightText,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 18,
+    color: COLORS.text,
+    backgroundColor: COLORS.white,
   },
   radioGroup: {
-    marginBottom: 16,
-  },
-  radioLabel: {
-    fontSize: 16,
-    marginBottom: 8,
+    width: '100%',
   },
   radioButton: {
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 8,
+    borderColor: COLORS.lightText,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: COLORS.white,
   },
   radioButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   radioButtonText: {
-    fontSize: 16,
-    color: '#000',
+    fontSize: 18,
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  radioButtonTextSelected: {
+    color: COLORS.white,
   },
   navigation: {
     flexDirection: 'row',
@@ -239,19 +447,23 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   button: {
-    padding: 12,
-    borderRadius: 8,
-    minWidth: 100,
+    padding: 16,
+    borderRadius: 12,
+    minWidth: 120,
     alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
   },
   buttonPrimary: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   buttonText: {
-    fontSize: 16,
-    color: '#007AFF',
+    fontSize: 18,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   buttonTextPrimary: {
-    color: '#fff',
+    color: COLORS.white,
   },
 }); 

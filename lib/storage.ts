@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   WEIGHT_LOG: 'weight_log',
   SETTINGS: 'settings',
   PREMIUM_STATUS: 'premium_status',
+  ONBOARDING_COMPLETE: 'onboarding_complete',
 } as const;
 
 // Initialize MMKV storage with fallback to AsyncStorage
@@ -25,6 +26,32 @@ try {
 
 // Type-safe storage operations
 export const Storage = {
+  // Onboarding Status
+  isOnboardingComplete: async () => {
+    try {
+      if (storage) {
+        return storage.getBoolean(STORAGE_KEYS.ONBOARDING_COMPLETE) || false;
+      } else {
+        const status = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE);
+        return status === 'true';
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      return false;
+    }
+  },
+  setOnboardingComplete: async (status: boolean) => {
+    try {
+      if (storage) {
+        storage.set(STORAGE_KEYS.ONBOARDING_COMPLETE, status);
+      } else {
+        await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, status.toString());
+      }
+    } catch (error) {
+      console.error('Error setting onboarding status:', error);
+    }
+  },
+
   // User Profile
   getUserProfile: async () => {
     try {

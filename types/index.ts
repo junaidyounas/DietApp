@@ -34,15 +34,20 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export type MealCategory = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'custom';
+
 export interface Meal {
   id: string;
   name: string;
+  description?: string;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
   timestamp: string;
   isFavorite: boolean;
+  category: MealCategory;
+  customCategoryName?: string;
 }
 
 export interface WeightLog {

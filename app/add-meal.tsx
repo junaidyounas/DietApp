@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Storage } from '../lib/storage';
-import { Meal } from '../types';
+import { Meal, MealCategory } from '../types';
 
 const COLORS = {
   primary: '#4CAF50',
@@ -18,16 +18,22 @@ const COLORS = {
   success: '#34C759',
 };
 
+const DEFAULT_CATEGORIES: MealCategory[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
 export default function AddMealScreen() {
   const [meal, setMeal] = useState<Partial<Meal>>({
     name: '',
+    description: '',
     calories: undefined,
     protein: undefined,
     carbs: undefined,
     fat: undefined,
     timestamp: new Date().toISOString(),
     isFavorite: false,
+    category: 'breakfast',
   });
+  const [showCustomCategory, setShowCustomCategory] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState('');
 
   const handleSave = async () => {
     try {
@@ -36,15 +42,23 @@ export default function AddMealScreen() {
         return;
       }
 
+      if (meal.category === 'custom' && !customCategoryName) {
+        Alert.alert('Error', 'Please enter a custom category name');
+        return;
+      }
+
       const newMeal: Meal = {
         id: Date.now().toString(),
         name: meal.name,
+        description: meal.description,
         calories: Math.round(meal.calories),
         protein: Math.round(meal.protein || 0),
         carbs: Math.round(meal.carbs || 0),
         fat: Math.round(meal.fat || 0),
         timestamp: meal.timestamp || new Date().toISOString(),
         isFavorite: false,
+        category: meal.category || 'breakfast',
+        customCategoryName: meal.category === 'custom' ? customCategoryName : undefined,
       };
 
       // Get current meals
@@ -104,6 +118,80 @@ export default function AddMealScreen() {
             </View>
 
             <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={meal.description}
+                onChangeText={(text) => setMeal({ ...meal, description: text })}
+                placeholder="Enter meal description (optional)"
+                placeholderTextColor={COLORS.lightText}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.categoryContainer}>
+                {DEFAULT_CATEGORIES.map((category) => (
+                  <Pressable
+                    key={category}
+                    style={[
+                      styles.categoryButton,
+                      meal.category === category && styles.categoryButtonActive,
+                    ]}
+                    onPress={() => {
+                      setMeal({ ...meal, category });
+                      setShowCustomCategory(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryButtonText,
+                        meal.category === category && styles.categoryButtonTextActive,
+                      ]}
+                    >
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[
+                    styles.categoryButton,
+                    meal.category === 'custom' && styles.categoryButtonActive,
+                  ]}
+                  onPress={() => {
+                    setMeal({ ...meal, category: 'custom' });
+                    setShowCustomCategory(true);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.categoryButtonText,
+                      meal.category === 'custom' && styles.categoryButtonTextActive,
+                    ]}
+                  >
+                    Custom
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {showCustomCategory && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Custom Category Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={customCategoryName}
+                  onChangeText={setCustomCategoryName}
+                  placeholder="Enter custom category name"
+                  placeholderTextColor={COLORS.lightText}
+                />
+              </View>
+            )}
+
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Calories *</Text>
               <TextInput
                 style={styles.input}
@@ -156,10 +244,10 @@ export default function AddMealScreen() {
             <Pressable 
               style={[
                 styles.saveButton,
-                (!meal.name || meal.calories === undefined) && styles.saveButtonDisabled
+                (!meal.name || meal.calories === undefined || (meal.category === 'custom' && !customCategoryName)) && styles.saveButtonDisabled
               ]} 
               onPress={handleSave}
-              disabled={!meal.name || meal.calories === undefined}
+              disabled={!meal.name || meal.calories === undefined || (meal.category === 'custom' && !customCategoryName)}
             >
               <Text style={styles.saveButtonText}>Save Meal</Text>
             </Pressable>
@@ -216,6 +304,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     backgroundColor: COLORS.white,
+  },
+  textArea: {
+    height: 100,
+    paddingTop: 12,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.lightText,
+    margin: 4,
+  },
+  categoryButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  categoryButtonText: {
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  categoryButtonTextActive: {
+    color: COLORS.white,
   },
   macrosContainer: {
     flexDirection: 'row',

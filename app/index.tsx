@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MealCard } from '../components/MealCard';
 import { Storage } from '../lib/storage';
-import { DailyCalories, Meal, UserProfile } from '../types';
+import { DailyCalories, Meal, MealCategory, UserProfile } from '../types';
 
 const COLORS = {
   primary: '#4CAF50',
@@ -19,10 +19,14 @@ const COLORS = {
   success: '#34C759',
 };
 
+const DEFAULT_CATEGORIES: MealCategory[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
 export default function HomeScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [dailyCalories, setDailyCalories] = useState<DailyCalories | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<MealCategory>('breakfast');
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -39,6 +43,13 @@ export default function HomeScreen() {
       setProfile(profileData);
       setDailyCalories(dailyCaloriesData);
       setMeals(mealsData);
+
+      // Extract custom categories
+      const customCats = mealsData
+        .filter((meal: Meal) => meal.category === 'custom' && meal.customCategoryName)
+        .map((meal: Meal) => meal.customCategoryName!)
+        .filter((name: string, index: number, self: string[]) => self.indexOf(name) === index);
+      setCustomCategories(customCats);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -58,6 +69,14 @@ export default function HomeScreen() {
 
   const formatNumber = (value: number) => {
     return Math.round(value).toString();
+  };
+
+  const getMealsByCategory = (category: MealCategory) => {
+    return meals.filter(meal => 
+      category === 'custom' 
+        ? meal.category === 'custom' && meal.customCategoryName
+        : meal.category === category
+    );
   };
 
   if (!profile) {
@@ -127,7 +146,52 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {meals.length === 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryTabs}
+          >
+            {DEFAULT_CATEGORIES.map((category) => (
+              <Pressable
+                key={category}
+                style={[
+                  styles.categoryTab,
+                  selectedCategory === category && styles.categoryTabActive,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text
+                  style={[
+                    styles.categoryTabText,
+                    selectedCategory === category && styles.categoryTabTextActive,
+                  ]}
+                >
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+            {customCategories.map((category) => (
+              <Pressable
+                key={category}
+                style={[
+                  styles.categoryTab,
+                  selectedCategory === 'custom' && styles.categoryTabActive,
+                ]}
+                onPress={() => setSelectedCategory('custom')}
+              >
+                <Text
+                  style={[
+                    styles.categoryTabText,
+                    selectedCategory === 'custom' && styles.categoryTabTextActive,
+                  ]}
+                >
+                  {category}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {getMealsByCategory(selectedCategory).length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No meals added yet</Text>
               <Pressable
@@ -138,11 +202,12 @@ export default function HomeScreen() {
               </Pressable>
             </View>
           ) : (
-            meals.map(meal => (
+            getMealsByCategory(selectedCategory).map(meal => (
               <MealCard
                 key={meal.id}
                 meal={meal}
                 onFavoritePress={() => handleFavoritePress(meal.id)}
+                onPress={() => router.push({ pathname: '/meal-details', params: { id: meal.id } })}
               />
             ))
           )}
@@ -251,6 +316,29 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: 8,
+  },
+  categoryTabs: {
+    marginBottom: 16,
+  },
+  categoryTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.lightText,
+  },
+  categoryTabActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  categoryTabText: {
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  categoryTabTextActive: {
+    color: COLORS.white,
   },
   emptyState: {
     alignItems: 'center',
